@@ -37,6 +37,51 @@ INTERVAL_CONFIG = {
         "start": "02-01", "end": "03-31",
         "total_days": 59, "label": "February 1 – March 31"
     },
+    "627 — Mar-Apr": {
+        "code": "627", "name": "Mar-Apr",
+        "start": "03-01", "end": "04-30",
+        "total_days": 61, "label": "March 1 – April 30"
+    },
+    "628 — Apr-May": {
+        "code": "628", "name": "Apr-May",
+        "start": "04-01", "end": "05-31",
+        "total_days": 61, "label": "April 1 – May 31"
+    },
+    "629 — May-Jun": {
+        "code": "629", "name": "May-Jun",
+        "start": "05-01", "end": "06-30",
+        "total_days": 61, "label": "May 1 – June 30"
+    },
+    "630 — Jun-Jul": {
+        "code": "630", "name": "Jun-Jul",
+        "start": "06-01", "end": "07-31",
+        "total_days": 61, "label": "June 1 – July 31"
+    },
+    "631 — Jul-Aug": {
+        "code": "631", "name": "Jul-Aug",
+        "start": "07-01", "end": "08-31",
+        "total_days": 62, "label": "July 1 – August 31"
+    },
+    "632 — Aug-Sep": {
+        "code": "632", "name": "Aug-Sep",
+        "start": "08-01", "end": "09-30",
+        "total_days": 61, "label": "August 1 – September 30"
+    },
+    "633 — Sep-Oct": {
+        "code": "633", "name": "Sep-Oct",
+        "start": "09-01", "end": "10-31",
+        "total_days": 61, "label": "September 1 – October 31"
+    },
+    "634 — Oct-Nov": {
+        "code": "634", "name": "Oct-Nov",
+        "start": "10-01", "end": "11-30",
+        "total_days": 61, "label": "October 1 – November 30"
+    },
+    "635 — Nov-Dec": {
+        "code": "635", "name": "Nov-Dec",
+        "start": "11-01", "end": "12-31",
+        "total_days": 61, "label": "November 1 – December 31"
+    },
 }
 
 # ─── Interval Name ↔ Code Mapping (all 11 PRF intervals) ───
@@ -47,6 +92,14 @@ INTERVAL_NAME_TO_CODE = {
     "Oct-Nov": "634", "Nov-Dec": "635",
 }
 INTERVAL_CODE_TO_NAME = {v: k for k, v in INTERVAL_NAME_TO_CODE.items()}
+
+
+def _get_interval_config_by_name(name):
+    """Look up full interval config by short name like 'Jan-Feb'."""
+    for k, v in INTERVAL_CONFIG.items():
+        if v['name'] == name:
+            return v
+    return None
 
 
 # ═══════════════════════════════════════════
@@ -606,25 +659,34 @@ def add_green_divider(doc, space_before=0, space_after=0, sz=8):
     return p
 
 
-def build_word_report(client_name, crop_year, interval_name, interval_code,
-                      interval_label, coverage_level, total_days,
-                      indem_df, display_df, all_positions_df=None,
+def build_word_report(client_name, crop_year, interval_results,
+                      coverage_level, all_positions_df=None,
                       estimated_premium=None):
     """
-    Build a complete PRF Rainfall Tracker Word report.
-    Returns BytesIO buffer containing the .docx file.
+    Build a multi-interval PRF Rainfall Tracker Word report in LANDSCAPE.
 
-    Report structure:
-    - Page 1: Cover (Texas Farm Credit branding, client, date, BETA badge)
-    - Page 2: Executive Summary (metrics, allocation table, disclaimer)
-    - Page 3: Interval Detail (scenario cards, position breakdown table)
-    - Page 4+: Gauges (legend + 3-per-row grid, overflow to next page)
-    - Final: Glossary (scenario definitions, PRF terms, beta notice)
+    Args:
+        client_name: e.g. "King Ranch"
+        crop_year: e.g. 2026
+        interval_results: dict keyed by interval name, each value is dict:
+            {
+                'indem_df': DataFrame from compute_indemnity_scenarios(),
+                'display_df': tracker DataFrame filtered to client grids,
+                'code': interval code string (e.g. "625"),
+                'label': human label (e.g. "January 1 - February 28"),
+                'total_days': int (e.g. 59),
+            }
+        coverage_level: int (e.g. 75)
+        all_positions_df: full positions DataFrame for allocation table
+        estimated_premium: optional dollar amount
+    Returns:
+        BytesIO buffer containing the .docx
     """
     from docx import Document
     from docx.shared import Inches, Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.enum.section import WD_ORIENT
     from docx.oxml.ns import qn
 
     _GREEN = RGBColor(0x5E, 0x97, 0x32)
@@ -637,14 +699,15 @@ def build_word_report(client_name, crop_year, interval_name, interval_code,
 
     doc = Document()
 
-    # Page setup: US Letter, 0.75" margins
+    # Page setup: LANDSCAPE, 0.5" margins
     section = doc.sections[0]
-    section.page_width = Inches(8.5)
-    section.page_height = Inches(11)
-    section.left_margin = Inches(0.75)
-    section.right_margin = Inches(0.75)
-    section.top_margin = Inches(0.75)
-    section.bottom_margin = Inches(0.6)
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width = Inches(11)
+    section.page_height = Inches(8.5)
+    section.left_margin = Inches(0.5)
+    section.right_margin = Inches(0.5)
+    section.top_margin = Inches(0.5)
+    section.bottom_margin = Inches(0.5)
 
     style = doc.styles['Normal']
     style.font.name = 'Arial'
@@ -652,12 +715,11 @@ def build_word_report(client_name, crop_year, interval_name, interval_code,
     style.font.color.rgb = _DARK
 
     report_date = datetime.date.today().strftime("%B %d, %Y")
-    days_in = int(display_df["DAYS_COLLECTED"].iloc[0]) if len(display_df) > 0 else 0
 
     # ═══════════════════════════════════════
     # PAGE 1: COVER
     # ═══════════════════════════════════════
-    for _ in range(4):
+    for _ in range(2):
         doc.add_paragraph()
 
     p = doc.add_paragraph()
@@ -744,10 +806,11 @@ def build_word_report(client_name, crop_year, interval_name, interval_code,
 
     add_green_divider(doc)
 
+    interval_list = ", ".join(interval_results.keys())
     metrics = [
         ("Client", f"{client_name} ({crop_year})"),
         ("Coverage Level", f"{coverage_level}%"),
-        ("Interval in Report", f"{interval_name} ({interval_code})"),
+        ("Intervals in Report", interval_list),
     ]
     if estimated_premium:
         metrics.insert(1, ("Estimated Premium Cost", f"${estimated_premium:,.0f}"))
@@ -838,189 +901,195 @@ def build_word_report(client_name, crop_year, interval_name, interval_code,
     run.font.color.rgb = _WARN
 
     # ═══════════════════════════════════════
-    # PAGE 3: INTERVAL DETAIL
+    # INTERVAL SECTIONS (one set per selected interval)
     # ═══════════════════════════════════════
-    doc.add_page_break()
+    for iv_name, iv_data in interval_results.items():
+        indem_df   = iv_data['indem_df']
+        display_df = iv_data['display_df']
+        iv_code    = iv_data['code']
+        iv_label   = iv_data['label']
+        iv_total   = iv_data['total_days']
+        days_in    = int(display_df["DAYS_COLLECTED"].iloc[0]) if len(display_df) > 0 else 0
 
-    p = doc.add_paragraph()
-    run = p.add_run(f"{interval_name} {crop_year}")
-    run.font.size = Pt(20)
-    run.font.bold = True
-    run.font.color.rgb = _DARK
-
-    p = doc.add_paragraph()
-    run = p.add_run(f"Interval {interval_code}  \u00b7  {interval_label}")
-    run.font.size = Pt(11)
-    run.font.color.rgb = _SLATE
-
-    add_green_divider(doc)
-
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(8)
-    run = p.add_run("Portfolio Indemnity Estimates")
-    run.font.size = Pt(14)
-    run.font.bold = True
-    run.font.color.rgb = _DARK
-
-    if not indem_df.empty:
-        total_opt   = int(indem_df['INDEM_OPTIMISTIC'].sum())
-        total_trend = int(indem_df['INDEM_TREND'].sum())
-        total_pess  = int(indem_df['INDEM_PESSIMISTIC'].sum())
-
-        # Scenario cards (3-column colored table)
-        card_table = doc.add_table(rows=1, cols=3)
-        card_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        scenarios = [
-            ("OPTIMISTIC", "Zero rain remaining", total_opt, "5E9732"),
-            ("CURRENT TREND", "Linear extrapolation", total_trend, "C4952B"),
-            ("PESSIMISTIC", "Normal pace remaining", total_pess, "9D5F58"),
-        ]
-
-        for i, (label, subtitle, amount, bg_hex) in enumerate(scenarios):
-            cell = card_table.rows[0].cells[i]
-            set_cell_shading(cell, bg_hex)
-            cell.text = ""
-            for txt, sz, bld in [(label, 10, True), (subtitle, 8, False), (f"${amount:,}", 20, True)]:
-                p = cell.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_before = Pt(2)
-                p.paragraph_format.space_after = Pt(2)
-                run = p.add_run(txt)
-                run.font.size = Pt(sz)
-                run.font.bold = bld
-                run.font.color.rgb = _WHITE
-                run.font.name = 'Arial'
+        # ── INTERVAL DETAIL PAGE ──
+        doc.add_page_break()
 
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(6)
-        run = p.add_run(
-            f"* Estimates based on rainfall data through day {days_in} of {total_days}. "
-            "See Glossary for scenario methodology."
-        )
-        run.font.size = Pt(8)
-        run.font.italic = True
+        run = p.add_run(f"{iv_name} {crop_year}")
+        run.font.size = Pt(20)
+        run.font.bold = True
+        run.font.color.rgb = _DARK
+
+        p = doc.add_paragraph()
+        run = p.add_run(f"Interval {iv_code}  \u00b7  {iv_label}")
+        run.font.size = Pt(11)
         run.font.color.rgb = _SLATE
 
-        # Position Breakdown Table (15 columns)
+        add_green_divider(doc)
+
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(12)
-        run = p.add_run("Position Breakdown")
+        p.paragraph_format.space_before = Pt(8)
+        run = p.add_run("Portfolio Indemnity Estimates")
         run.font.size = Pt(14)
         run.font.bold = True
         run.font.color.rgb = _DARK
 
-        pos_cols = ["Grid", "County", "Acres", "Alloc%", "CBV", "Normal", "Rain",
-                    "Days", "Opt Idx", "Trend Idx", "Pess Idx",
-                    "Protection", "$ Opt", "$ Trend", "$ Pess"]
+        if not indem_df.empty:
+            total_opt   = int(indem_df['INDEM_OPTIMISTIC'].sum())
+            total_trend = int(indem_df['INDEM_TREND'].sum())
+            total_pess  = int(indem_df['INDEM_PESSIMISTIC'].sum())
 
-        pos_tbl = doc.add_table(rows=1, cols=len(pos_cols))
-        pos_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-        pos_tbl.autofit = True
+            # Scenario cards (3-column colored table)
+            card_table = doc.add_table(rows=1, cols=3)
+            card_table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-        for i, col_name in enumerate(pos_cols):
-            cell = pos_tbl.rows[0].cells[i]
-            cell.text = ""
-            p = cell.paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(col_name)
-            run.font.size = Pt(7)
+            scenarios = [
+                ("OPTIMISTIC", "Zero rain remaining", total_opt, "5E9732"),
+                ("CURRENT TREND", "Linear extrapolation", total_trend, "C4952B"),
+                ("PESSIMISTIC", "Normal pace remaining", total_pess, "9D5F58"),
+            ]
+
+            for i, (label, subtitle, amount, bg_hex) in enumerate(scenarios):
+                cell = card_table.rows[0].cells[i]
+                set_cell_shading(cell, bg_hex)
+                cell.text = ""
+                for txt, sz, bld in [(label, 10, True), (subtitle, 8, False), (f"${amount:,}", 20, True)]:
+                    p = cell.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.paragraph_format.space_before = Pt(2)
+                    p.paragraph_format.space_after = Pt(2)
+                    run = p.add_run(txt)
+                    run.font.size = Pt(sz)
+                    run.font.bold = bld
+                    run.font.color.rgb = _WHITE
+                    run.font.name = 'Arial'
+
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(6)
+            run = p.add_run(
+                f"* Estimates based on rainfall data through day {days_in} of {iv_total}. "
+                "See Glossary for scenario methodology."
+            )
+            run.font.size = Pt(8)
+            run.font.italic = True
+            run.font.color.rgb = _SLATE
+
+            # Position Breakdown Table (15 columns)
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(12)
+            run = p.add_run("Position Breakdown")
+            run.font.size = Pt(14)
             run.font.bold = True
-            run.font.color.rgb = _WHITE
-            run.font.name = 'Arial'
-            set_cell_shading(cell, "2D3A2E")
+            run.font.color.rgb = _DARK
 
-        for _, r in indem_df.iterrows():
-            vals = [
-                str(int(r['GRID_ID'])), r['COUNTY'], f"{int(r['ACRES']):,}",
-                f"{r['ALLOC_PCT']:.0f}%", f"${r['CBV']:.2f}",
-                f"{r['NORMAL_IN']:.2f}\"", f"{r['RAIN_SO_FAR']:.2f}\"",
-                str(int(r['DAYS'])),
-                f"{r['OPTIMISTIC_IDX']:.1f}", f"{r['TREND_IDX']:.1f}", f"{r['PESSIMISTIC_IDX']:.1f}",
-                f"${int(r['PROTECTION']):,}",
-                f"${int(r['INDEM_OPTIMISTIC']):,}",
-                f"${int(r['INDEM_TREND']):,}",
-                f"${int(r['INDEM_PESSIMISTIC']):,}",
+            pos_cols = ["Grid", "County", "Acres", "Alloc%", "CBV", "Normal", "Rain",
+                        "Days", "Opt Idx", "Trend Idx", "Pess Idx",
+                        "Protection", "$ Opt", "$ Trend", "$ Pess"]
+
+            pos_tbl = doc.add_table(rows=1, cols=len(pos_cols))
+            pos_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+            pos_tbl.autofit = True
+
+            for i, col_name in enumerate(pos_cols):
+                cell = pos_tbl.rows[0].cells[i]
+                cell.text = ""
+                p = cell.paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = p.add_run(col_name)
+                run.font.size = Pt(7)
+                run.font.bold = True
+                run.font.color.rgb = _WHITE
+                run.font.name = 'Arial'
+                set_cell_shading(cell, "2D3A2E")
+
+            for _, r in indem_df.iterrows():
+                vals = [
+                    str(int(r['GRID_ID'])), r['COUNTY'], f"{int(r['ACRES']):,}",
+                    f"{r['ALLOC_PCT']:.0f}%", f"${r['CBV']:.2f}",
+                    f"{r['NORMAL_IN']:.2f}\"", f"{r['RAIN_SO_FAR']:.2f}\"",
+                    str(int(r['DAYS'])),
+                    f"{r['OPTIMISTIC_IDX']:.1f}", f"{r['TREND_IDX']:.1f}", f"{r['PESSIMISTIC_IDX']:.1f}",
+                    f"${int(r['PROTECTION']):,}",
+                    f"${int(r['INDEM_OPTIMISTIC']):,}",
+                    f"${int(r['INDEM_TREND']):,}",
+                    f"${int(r['INDEM_PESSIMISTIC']):,}",
+                ]
+                row_cells = pos_tbl.add_row().cells
+                for i, v in enumerate(vals):
+                    cell = row_cells[i]
+                    cell.text = ""
+                    p = cell.paragraphs[0]
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER if i != 1 else WD_ALIGN_PARAGRAPH.LEFT
+                    run = p.add_run(v)
+                    run.font.size = Pt(7)
+                    run.font.name = 'Arial'
+
+            # Totals row
+            total_acres = int(indem_df['ACRES'].sum())
+            total_prot  = int(indem_df['PROTECTION'].sum())
+            tot_vals = [
+                "TOTAL", "", f"{total_acres:,}", "", "", "", "", "", "", "", "",
+                f"${total_prot:,}", f"${total_opt:,}", f"${total_trend:,}", f"${total_pess:,}",
             ]
             row_cells = pos_tbl.add_row().cells
-            for i, v in enumerate(vals):
+            for i, v in enumerate(tot_vals):
                 cell = row_cells[i]
                 cell.text = ""
                 p = cell.paragraphs[0]
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER if i != 1 else WD_ALIGN_PARAGRAPH.LEFT
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 run = p.add_run(v)
                 run.font.size = Pt(7)
+                run.font.bold = True
                 run.font.name = 'Arial'
+                set_cell_shading(cell, "F5F1E8")
 
-        # Totals row
-        total_acres = int(indem_df['ACRES'].sum())
-        total_prot  = int(indem_df['PROTECTION'].sum())
-        tot_vals = [
-            "TOTAL", "", f"{total_acres:,}", "", "", "", "", "", "", "", "",
-            f"${total_prot:,}", f"${total_opt:,}", f"${total_trend:,}", f"${total_pess:,}",
-        ]
-        row_cells = pos_tbl.add_row().cells
-        for i, v in enumerate(tot_vals):
-            cell = row_cells[i]
-            cell.text = ""
-            p = cell.paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(v)
-            run.font.size = Pt(7)
+        # ── GAUGE PAGES — exactly 3 per page ──
+        display_sorted = display_df.sort_values("PROJECTED_INDEX", ascending=True)
+        gauge_list = [row for _, row in display_sorted.iterrows()]
+
+        COLS = 3
+        for chunk_start in range(0, len(gauge_list), COLS):
+            doc.add_page_break()
+
+            # Mini header on each gauge page
+            p = doc.add_paragraph()
+            run = p.add_run(f"{iv_name} \u2014 Projected Final Index")
+            run.font.size = Pt(16)
             run.font.bold = True
-            run.font.name = 'Arial'
-            set_cell_shading(cell, "F5F1E8")
+            run.font.color.rgb = _DARK
 
-    # ═══════════════════════════════════════
-    # PAGE 4+: GAUGES
-    # ═══════════════════════════════════════
-    doc.add_page_break()
+            # Legend only on first gauge page per interval
+            if chunk_start == 0:
+                legend_buf = generate_legend_png(coverage_level)
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.add_run().add_picture(legend_buf, width=Inches(7.5))
 
-    p = doc.add_paragraph()
-    run = p.add_run("Projected Final Index")
-    run.font.size = Pt(20)
-    run.font.bold = True
-    run.font.color.rgb = _DARK
+            chunk = gauge_list[chunk_start:chunk_start + COLS]
+            gauge_tbl = doc.add_table(rows=1, cols=COLS)
+            gauge_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-    add_green_divider(doc)
+            for i, row in enumerate(chunk):
+                buf = generate_gauge_png(
+                    grid_id=row["GRID_ID"],
+                    projected_index=row["PROJECTED_INDEX"],
+                    partial_index=row["PARTIAL_INDEX"],
+                    signal=row["SIGNAL"],
+                    rain_so_far=row["RAIN_SO_FAR"],
+                    normal_in=row["NORMAL_IN"],
+                    days=row["DAYS_COLLECTED"],
+                    total_days=iv_total,
+                    coverage_level=coverage_level,
+                    county_name=row.get("COUNTY_NAME", ""),
+                )
+                cell = gauge_tbl.rows[0].cells[i]
+                cell.text = ""
+                p = cell.paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.add_run().add_picture(buf, width=Inches(3.0))
 
-    # Legend
-    legend_buf = generate_legend_png(coverage_level)
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.add_run().add_picture(legend_buf, width=Inches(5.5))
-
-    # Gauges: 3 per row, sorted by projected index ascending
-    display_sorted = display_df.sort_values("PROJECTED_INDEX", ascending=True)
-    gauge_rows_data = [row for _, row in display_sorted.iterrows()]
-
-    COLS = 3
-    for chunk_start in range(0, len(gauge_rows_data), COLS):
-        chunk = gauge_rows_data[chunk_start:chunk_start + COLS]
-        gauge_tbl = doc.add_table(rows=1, cols=COLS)
-        gauge_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        for i, row in enumerate(chunk):
-            buf = generate_gauge_png(
-                grid_id=row["GRID_ID"],
-                projected_index=row["PROJECTED_INDEX"],
-                partial_index=row["PARTIAL_INDEX"],
-                signal=row["SIGNAL"],
-                rain_so_far=row["RAIN_SO_FAR"],
-                normal_in=row["NORMAL_IN"],
-                days=row["DAYS_COLLECTED"],
-                total_days=total_days,
-                coverage_level=coverage_level,
-                county_name=row.get("COUNTY_NAME", ""),
-            )
-            cell = gauge_tbl.rows[0].cells[i]
-            cell.text = ""
-            p = cell.paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.add_run().add_picture(buf, width=Inches(2.2))
-
-        for i in range(len(chunk), COLS):
-            gauge_tbl.rows[0].cells[i].text = ""
+            for i in range(len(chunk), COLS):
+                gauge_tbl.rows[0].cells[i].text = ""
 
     # ═══════════════════════════════════════
     # GLOSSARY
@@ -1240,10 +1309,32 @@ with st.sidebar:
     if client_mode:
         st.divider()
         st.markdown("**📄 Word Report**")
+
+        # Determine which intervals this client has allocations for
+        all_client_pos = load_client_policy(client_name, crop_year)
+        allocated_intervals = set()
+        for _, pos in all_client_pos.iterrows():
+            alloc = pos.get('ALLOCATION', {})
+            for iv_nm, pct in alloc.items():
+                if pct > 0:
+                    allocated_intervals.add(iv_nm)
+
+        # Filter to intervals we have config for, preserve chronological order
+        all_iv_names = list(INTERVAL_NAME_TO_CODE.keys())
+        available_for_report = [iv for iv in all_iv_names if iv in allocated_intervals]
+
+        report_intervals = st.multiselect(
+            "Intervals to include",
+            options=available_for_report,
+            default=[interval['name']] if interval['name'] in available_for_report else available_for_report[:1],
+            help="Select which intervals to include in the Word report"
+        )
+
         generate_report = st.button("📄 Generate Report", use_container_width=True,
                                      help="Download Word doc with scenarios, tables, and gauges")
     else:
         generate_report = False
+        report_intervals = []
 
     st.divider()
     st.markdown(f"""
@@ -1456,31 +1547,90 @@ if generate or generate_report:
             st.markdown("")
 
         # ── Word Report Generation ──
-        if generate_report and not indem_df.empty:
-            with st.spinner("Generating Word report..."):
-                all_positions = load_client_policy(client_name, crop_year)
-                report_buf = build_word_report(
-                    client_name=client_name,
-                    crop_year=crop_year,
-                    interval_name=interval_name,
-                    interval_code=interval['code'],
-                    interval_label=interval['label'],
-                    coverage_level=coverage_level,
-                    total_days=total_days,
-                    indem_df=indem_df,
-                    display_df=display_df,
-                    all_positions_df=all_positions,
-                    estimated_premium=647054,
+        if generate_report and report_intervals:
+            interval_results = {}
+
+            for rpt_iv_name in report_intervals:
+                rpt_config = _get_interval_config_by_name(rpt_iv_name)
+                if rpt_config is None:
+                    st.warning(f"No config for {rpt_iv_name}, skipping.")
+                    continue
+
+                rpt_code  = rpt_config['code']
+                rpt_total = rpt_config['total_days']
+                rpt_start = f"2026-{rpt_config['start']}"
+                rpt_end   = f"2026-{rpt_config['end']}"
+
+                rpt_rain  = load_rainfall(rpt_start, rpt_end)
+                rpt_grids = load_texas_grids(rpt_code)
+
+                if rpt_rain.empty:
+                    st.caption(f"No rainfall data for {rpt_iv_name}, skipping.")
+                    continue
+
+                rpt_tracker = build_tracker(rpt_grids, rpt_rain, coverage_level, rpt_total)
+
+                # Positions with allocation for this interval
+                all_pos = load_client_policy(client_name, crop_year)
+                rpt_pos = all_pos[all_pos['ALLOCATION'].apply(
+                    lambda a: a.get(rpt_iv_name, 0) > 0
+                )].copy()
+
+                if rpt_pos.empty:
+                    continue
+
+                rpt_display = rpt_tracker[
+                    rpt_tracker["GRID_ID"].isin(rpt_pos['GRID_ID'].unique())
+                ].copy()
+                if rpt_display.empty:
+                    continue
+                rpt_display = rpt_display.sort_values("PROJECTED_INDEX", ascending=True)
+
+                rpt_indem = compute_indemnity_scenarios(
+                    rpt_pos, rpt_rain, rpt_grids, rpt_iv_name, rpt_total
                 )
-                filename = f"PRF_Report_{client_name.replace(' ', '_')}_{interval_name}_{crop_year}.docx"
-                st.success("Report generated!")
-                st.download_button(
-                    label="⬇️ Download Report",
-                    data=report_buf,
-                    file_name=filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True,
-                )
+
+                if not rpt_indem.empty:
+                    interval_results[rpt_iv_name] = {
+                        'indem_df':   rpt_indem,
+                        'display_df': rpt_display,
+                        'code':       rpt_code,
+                        'label':      rpt_config['label'],
+                        'total_days': rpt_total,
+                    }
+
+            if interval_results:
+                with st.spinner(f"Generating report ({len(interval_results)} interval{'s' if len(interval_results) > 1 else ''})..."):
+                    try:
+                        all_positions = load_client_policy(client_name, crop_year)
+                        report_buf = build_word_report(
+                            client_name=client_name,
+                            crop_year=crop_year,
+                            interval_results=interval_results,
+                            coverage_level=coverage_level,
+                            all_positions_df=all_positions,
+                            estimated_premium=647054,
+                        )
+                        fname = f"PRF_Report_{client_name.replace(' ', '_')}_{crop_year}.docx"
+                        st.success(f"Report ready — {len(interval_results)} interval(s)!")
+                        st.download_button(
+                            label="⬇️ Download Report",
+                            data=report_buf,
+                            file_name=fname,
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True,
+                        )
+                    except ImportError as e:
+                        st.error(
+                            f"Missing package: {e}. "
+                            "Add python-docx and matplotlib to your Snowflake environment."
+                        )
+                    except Exception as e:
+                        st.error(f"Report generation failed: {e}")
+                        import traceback
+                        st.code(traceback.format_exc())
+            else:
+                st.warning("No data available for selected intervals.")
 
     # ─────────────────────────────────────
     # MANUAL MODE (existing behavior)
