@@ -537,7 +537,7 @@ def generate_gauge_png(grid_id, projected_index, partial_index, signal,
     max_range = max(150, projected_index + 20)
     pct_through = round(days / total_days * 100) if total_days > 0 else 0
 
-    fig, ax = plt.subplots(1, 1, figsize=(5.4, 4.4), facecolor=FC_CREAM)
+    fig, ax = plt.subplots(1, 1, figsize=(3.8, 3.1), facecolor=FC_CREAM)
     ax.set_xlim(-1.3, 1.3)
     ax.set_ylim(-0.52, 1.45)
     ax.set_aspect('equal')
@@ -564,19 +564,19 @@ def generate_gauge_png(grid_id, projected_index, partial_index, signal,
         ax.plot([1.02 * np.cos(a), 1.08 * np.cos(a)],
                 [1.02 * np.sin(a), 1.08 * np.sin(a)], color=FC_SLATE, linewidth=0.8)
         ax.text(1.15 * np.cos(a), 1.15 * np.sin(a), str(tick_val),
-                ha='center', va='center', fontsize=8, color=FC_SLATE, fontweight='bold')
+                ha='center', va='center', fontsize=6, color=FC_SLATE, fontweight='bold')
     # Big number
     ax.text(0, 0.38, f"{projected_index:.1f}", ha='center', va='center',
-            fontsize=36, fontweight='black', color=FC_DARK, fontfamily='sans-serif')
+            fontsize=28, fontweight='black', color=FC_DARK, fontfamily='sans-serif')
     # Title line 1
     county_str = f"  \u00b7  {county_name}" if county_name else ""
     ax.text(0, 1.42, f"Grid {grid_id}{county_str}",
-            ha='center', va='center', fontsize=13, fontweight='bold', color=FC_DARK)
+            ha='center', va='center', fontsize=10, fontweight='bold', color=FC_DARK)
     # Title line 2
     ax.text(0, 1.28,
             f'Rain: {rain_so_far:.2f}" of {normal_in:.1f}" normal  \u00b7  '
             f'{days}/{total_days} days ({pct_through}%)  \u00b7  Coverage: {coverage_level}%',
-            ha='center', va='center', fontsize=7.5, color=FC_SLATE)
+            ha='center', va='center', fontsize=5.5, color=FC_SLATE)
 
     # Bottom Banner (green="LIKELY INDEMNITY", slate="OK")
     banner_color = FC_GREEN if signal == "LIKELY INDEMNITY" else FC_SLATE
@@ -589,7 +589,7 @@ def generate_gauge_png(grid_id, projected_index, partial_index, signal,
     else:
         txt = f"OK  \u2014  Current: {partial_index:.1f}  \u00b7  Projected: {projected_index:.1f}"
     ax.text(0, -0.38, txt, ha='center', va='center',
-            fontsize=7.5, fontweight='bold', color='white')
+            fontsize=5.5, fontweight='bold', color='white')
 
     plt.tight_layout(pad=0.2)
     buf = io.BytesIO()
@@ -606,23 +606,23 @@ def generate_legend_png(coverage_level):
     import matplotlib.pyplot as plt
     from matplotlib.patches import FancyBboxPatch
 
-    fig, ax = plt.subplots(1, 1, figsize=(8.0, 0.6), facecolor=FC_CREAM)
+    fig, ax = plt.subplots(1, 1, figsize=(7.0, 0.5), facecolor=FC_CREAM)
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 1)
     ax.axis('off')
 
     ax.add_patch(FancyBboxPatch((0.2, 0.25), 0.6, 0.5, boxstyle="round,pad=0.05",
                                 facecolor=FC_GREEN, edgecolor='none'))
-    ax.text(1.0, 0.5, "Bar \u2014 Projected Final Index", va='center', fontsize=9,
+    ax.text(1.0, 0.5, "Bar \u2014 Projected Final Index", va='center', fontsize=8,
             fontweight='bold', color=FC_DARK)
 
     ax.plot([3.9, 3.9], [0.15, 0.85], color=FC_DARK, linewidth=2.5)
-    ax.text(4.1, 0.5, "Line \u2014 Current Estimated Index", va='center', fontsize=9,
+    ax.text(4.1, 0.5, "Line \u2014 Current Estimated Index", va='center', fontsize=8,
             fontweight='bold', color=FC_DARK)
 
     ax.add_patch(FancyBboxPatch((7.2, 0.25), 0.6, 0.5, boxstyle="round,pad=0.05",
                                 facecolor='#5E973248', edgecolor='#ccc', linewidth=0.5))
-    ax.text(8.0, 0.5, f"Indemnity zone (below {coverage_level})", va='center', fontsize=9,
+    ax.text(8.0, 0.5, f"Indemnity zone (below {coverage_level})", va='center', fontsize=8,
             color=FC_DARK)
 
     plt.tight_layout(pad=0.1)
@@ -1159,34 +1159,33 @@ def build_word_report(client_name, crop_year, interval_results,
             for cell in row_cells:
                 set_cell_borders(cell)
 
-        # ── GAUGE PAGES — 2 per page, vertical, centered ──
+        # ── GAUGE PAGES — exactly 3 per page ──
         display_sorted = display_df.sort_values("PROJECTED_INDEX", ascending=True)
         gauge_list = [row for _, row in display_sorted.iterrows()]
 
-        GAUGES_PER_PAGE = 2
-        for chunk_start in range(0, len(gauge_list), GAUGES_PER_PAGE):
+        COLS = 3
+        for chunk_start in range(0, len(gauge_list), COLS):
             doc.add_page_break()
 
             # Mini header on each gauge page
             p = doc.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(f"{iv_name} — Projected Final Index")
-            run.font.size = Pt(14)
+            run.font.size = Pt(16)
             run.font.bold = True
             run.font.color.rgb = _DARK
-            p.paragraph_format.space_after = Pt(4)
 
             # Legend only on first gauge page per interval
             if chunk_start == 0:
                 legend_buf = generate_legend_png(coverage_level)
                 p = doc.add_paragraph()
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_after = Pt(4)
-                p.add_run().add_picture(legend_buf, width=Inches(7.0))
+                p.add_run().add_picture(legend_buf, width=Inches(7.5))
 
-            chunk = gauge_list[chunk_start:chunk_start + GAUGES_PER_PAGE]
+            chunk = gauge_list[chunk_start:chunk_start + COLS]
+            gauge_tbl = doc.add_table(rows=1, cols=COLS)
+            gauge_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-            for row in chunk:
+            for i, row in enumerate(chunk):
                 buf = generate_gauge_png(
                     grid_id=row["GRID_ID"],
                     projected_index=row["PROJECTED_INDEX"],
@@ -1199,11 +1198,14 @@ def build_word_report(client_name, crop_year, interval_results,
                     coverage_level=coverage_level,
                     county_name=row.get("COUNTY_NAME", ""),
                 )
-                p = doc.add_paragraph()
+                cell = gauge_tbl.rows[0].cells[i]
+                cell.text = ""
+                p = cell.paragraphs[0]
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_before = Pt(2)
-                p.paragraph_format.space_after = Pt(2)
-                p.add_run().add_picture(buf, width=Inches(4.5))
+                p.add_run().add_picture(buf, width=Inches(3.0))
+
+            for i in range(len(chunk), COLS):
+                gauge_tbl.rows[0].cells[i].text = ""
 
     # ═══════════════════════════════════════
     # GLOSSARY
