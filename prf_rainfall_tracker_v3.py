@@ -1077,7 +1077,8 @@ def build_word_report(client_name, crop_year, interval_results,
             p.paragraph_format.space_before = Pt(6)
             run = p.add_run(
                 f"* Estimated gross payouts based on rainfall data through day {days_in} of {iv_total}. "
-                "Does not include premium costs. See Glossary for scenario methodology."
+                "Does not include premium costs. Index values are rounded to the nearest tenth; "
+                "manual calculations may differ by a few dollars. See Glossary for scenario methodology."
             )
             run.font.size = Pt(8)
             run.font.italic = True
