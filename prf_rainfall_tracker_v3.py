@@ -537,7 +537,7 @@ def generate_gauge_png(grid_id, projected_index, partial_index, signal,
     max_range = max(150, projected_index + 20)
     pct_through = round(days / total_days * 100) if total_days > 0 else 0
 
-    fig, ax = plt.subplots(1, 1, figsize=(3.8, 3.1), facecolor=FC_CREAM)
+    fig, ax = plt.subplots(1, 1, figsize=(5.4, 4.4), facecolor=FC_CREAM)
     ax.set_xlim(-1.3, 1.3)
     ax.set_ylim(-0.52, 1.45)
     ax.set_aspect('equal')
@@ -564,19 +564,19 @@ def generate_gauge_png(grid_id, projected_index, partial_index, signal,
         ax.plot([1.02 * np.cos(a), 1.08 * np.cos(a)],
                 [1.02 * np.sin(a), 1.08 * np.sin(a)], color=FC_SLATE, linewidth=0.8)
         ax.text(1.15 * np.cos(a), 1.15 * np.sin(a), str(tick_val),
-                ha='center', va='center', fontsize=6, color=FC_SLATE, fontweight='bold')
+                ha='center', va='center', fontsize=8, color=FC_SLATE, fontweight='bold')
     # Big number
     ax.text(0, 0.38, f"{projected_index:.1f}", ha='center', va='center',
-            fontsize=28, fontweight='black', color=FC_DARK, fontfamily='sans-serif')
+            fontsize=36, fontweight='black', color=FC_DARK, fontfamily='sans-serif')
     # Title line 1
     county_str = f"  \u00b7  {county_name}" if county_name else ""
     ax.text(0, 1.42, f"Grid {grid_id}{county_str}",
-            ha='center', va='center', fontsize=10, fontweight='bold', color=FC_DARK)
+            ha='center', va='center', fontsize=13, fontweight='bold', color=FC_DARK)
     # Title line 2
     ax.text(0, 1.28,
             f'Rain: {rain_so_far:.2f}" of {normal_in:.1f}" normal  \u00b7  '
             f'{days}/{total_days} days ({pct_through}%)  \u00b7  Coverage: {coverage_level}%',
-            ha='center', va='center', fontsize=5.5, color=FC_SLATE)
+            ha='center', va='center', fontsize=7.5, color=FC_SLATE)
 
     # Bottom Banner (green="LIKELY INDEMNITY", slate="OK")
     banner_color = FC_GREEN if signal == "LIKELY INDEMNITY" else FC_SLATE
@@ -589,7 +589,7 @@ def generate_gauge_png(grid_id, projected_index, partial_index, signal,
     else:
         txt = f"OK  \u2014  Current: {partial_index:.1f}  \u00b7  Projected: {projected_index:.1f}"
     ax.text(0, -0.38, txt, ha='center', va='center',
-            fontsize=5.5, fontweight='bold', color='white')
+            fontsize=7.5, fontweight='bold', color='white')
 
     plt.tight_layout(pad=0.2)
     buf = io.BytesIO()
@@ -606,23 +606,23 @@ def generate_legend_png(coverage_level):
     import matplotlib.pyplot as plt
     from matplotlib.patches import FancyBboxPatch
 
-    fig, ax = plt.subplots(1, 1, figsize=(7.0, 0.5), facecolor=FC_CREAM)
+    fig, ax = plt.subplots(1, 1, figsize=(8.0, 0.6), facecolor=FC_CREAM)
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 1)
     ax.axis('off')
 
     ax.add_patch(FancyBboxPatch((0.2, 0.25), 0.6, 0.5, boxstyle="round,pad=0.05",
                                 facecolor=FC_GREEN, edgecolor='none'))
-    ax.text(1.0, 0.5, "Bar \u2014 Projected Final Index", va='center', fontsize=8,
+    ax.text(1.0, 0.5, "Bar \u2014 Projected Final Index", va='center', fontsize=9,
             fontweight='bold', color=FC_DARK)
 
     ax.plot([3.9, 3.9], [0.15, 0.85], color=FC_DARK, linewidth=2.5)
-    ax.text(4.1, 0.5, "Line \u2014 Current Estimated Index", va='center', fontsize=8,
+    ax.text(4.1, 0.5, "Line \u2014 Current Estimated Index", va='center', fontsize=9,
             fontweight='bold', color=FC_DARK)
 
     ax.add_patch(FancyBboxPatch((7.2, 0.25), 0.6, 0.5, boxstyle="round,pad=0.05",
                                 facecolor='#5E973248', edgecolor='#ccc', linewidth=0.5))
-    ax.text(8.0, 0.5, f"Indemnity zone (below {coverage_level})", va='center', fontsize=8,
+    ax.text(8.0, 0.5, f"Indemnity zone (below {coverage_level})", va='center', fontsize=9,
             color=FC_DARK)
 
     plt.tight_layout(pad=0.1)
@@ -639,6 +639,22 @@ def set_cell_shading(cell, color_hex):
     from docx.oxml import parse_xml
     shading = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{color_hex}" w:val="clear"/>')
     cell._tc.get_or_add_tcPr().append(shading)
+
+
+def set_cell_borders(cell, color_hex="D5D0C6", sz=4):
+    """Add thin borders to all four sides of a table cell.
+    Uses w:start/w:end (not w:left/w:right) for OOXML compliance."""
+    from docx.oxml.ns import nsdecls
+    from docx.oxml import parse_xml
+    borders = parse_xml(
+        f'<w:tcBorders {nsdecls("w")}>'
+        f'  <w:top w:val="single" w:sz="{sz}" w:space="0" w:color="{color_hex}"/>'
+        f'  <w:start w:val="single" w:sz="{sz}" w:space="0" w:color="{color_hex}"/>'
+        f'  <w:bottom w:val="single" w:sz="{sz}" w:space="0" w:color="{color_hex}"/>'
+        f'  <w:end w:val="single" w:sz="{sz}" w:space="0" w:color="{color_hex}"/>'
+        f'</w:tcBorders>'
+    )
+    cell._tc.get_or_add_tcPr().append(borders)
 
 
 def add_green_divider(doc, space_before=0, space_after=0, sz=8):
@@ -708,6 +724,7 @@ def build_word_report(client_name, crop_year, interval_results,
     section.right_margin = Inches(0.5)
     section.top_margin = Inches(0.5)
     section.bottom_margin = Inches(0.5)
+    section.different_first_page_header_footer = True
 
     style = doc.styles['Normal']
     style.font.name = 'Arial'
@@ -719,8 +736,8 @@ def build_word_report(client_name, crop_year, interval_results,
     # ═══════════════════════════════════════
     # PAGE 1: COVER
     # ═══════════════════════════════════════
-    for _ in range(2):
-        doc.add_paragraph()
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(24)
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -763,18 +780,19 @@ def build_word_report(client_name, crop_year, interval_results,
         r2.font.bold = True
         r2.font.color.rgb = val_color
 
-    doc.add_paragraph()
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(16)
     run = p.add_run("BETA")
     run.font.size = Pt(16)
     run.font.bold = True
     run.font.color.rgb = _AMBER
 
     for txt in [
-        "This report is in beta mode. All figures are estimates only.",
+        "This report is in beta mode. All figures are estimated gross indemnity payouts.",
+        "Amounts shown do not include premium costs and do not represent net profit or loss.",
         "Estimates are based on real-time CPC rainfall data and linear projections.",
-        "Final index values and indemnities are determined by RMA/USDA after interval close.",
+        "Final index values and indemnity amounts are determined by RMA/USDA after interval close.",
     ]:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -783,15 +801,101 @@ def build_word_report(client_name, crop_year, interval_results,
         run.font.italic = True
         run.font.color.rgb = _SLATE
 
-    # Footer
-    footer = section.footer
-    footer.is_linked_to_previous = False
-    fp = footer.paragraphs[0]
+    # ── Footer: Cover page (first page) ──
+    first_footer = section.first_page_footer
+    first_footer.is_linked_to_previous = False
+    fp = first_footer.paragraphs[0]
     fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = fp.add_run("FOR INTERNAL USE ONLY")
     run.font.size = Pt(8)
     run.font.bold = True
     run.font.color.rgb = _RUST
+
+    # ── Footer: Pages 2+ (default footer) ──
+    # Left: "FOR INTERNAL USE ONLY"   Right: "Page X of Y"
+    default_footer = section.footer
+    default_footer.is_linked_to_previous = False
+    dfp = default_footer.paragraphs[0]
+    dfp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    # "FOR INTERNAL USE ONLY" on the left
+    run = dfp.add_run("FOR INTERNAL USE ONLY")
+    run.font.size = Pt(8)
+    run.font.bold = True
+    run.font.color.rgb = _RUST
+    run.font.name = 'Arial'
+
+    # Tab to right side
+    run = dfp.add_run("\t")
+
+    # "Page " text
+    run = dfp.add_run("Page ")
+    run.font.size = Pt(8)
+    run.font.color.rgb = _SLATE
+    run.font.name = 'Arial'
+
+    # PAGE field code (inserts current page number)
+    from docx.oxml import OxmlElement
+    fld_page = OxmlElement('w:fldSimple')
+    fld_page.set(qn('w:instr'), ' PAGE ')
+    fld_run = OxmlElement('w:r')
+    fld_rpr = OxmlElement('w:rPr')
+    fld_sz = OxmlElement('w:sz')
+    fld_sz.set(qn('w:val'), '16')  # 8pt = 16 half-points
+    fld_rpr.append(fld_sz)
+    fld_font = OxmlElement('w:rFonts')
+    fld_font.set(qn('w:ascii'), 'Arial')
+    fld_font.set(qn('w:hAnsi'), 'Arial')
+    fld_rpr.append(fld_font)
+    fld_color = OxmlElement('w:color')
+    fld_color.set(qn('w:val'), '5B707F')
+    fld_rpr.append(fld_color)
+    fld_run.append(fld_rpr)
+    fld_text = OxmlElement('w:t')
+    fld_text.text = '2'  # placeholder text, Word replaces with actual page
+    fld_run.append(fld_text)
+    fld_page.append(fld_run)
+    dfp._p.append(fld_page)
+
+    # " of " text
+    run = dfp.add_run(" of ")
+    run.font.size = Pt(8)
+    run.font.color.rgb = _SLATE
+    run.font.name = 'Arial'
+
+    # NUMPAGES field code (inserts total page count)
+    fld_total = OxmlElement('w:fldSimple')
+    fld_total.set(qn('w:instr'), ' NUMPAGES ')
+    fld_run2 = OxmlElement('w:r')
+    fld_rpr2 = OxmlElement('w:rPr')
+    fld_sz2 = OxmlElement('w:sz')
+    fld_sz2.set(qn('w:val'), '16')
+    fld_rpr2.append(fld_sz2)
+    fld_font2 = OxmlElement('w:rFonts')
+    fld_font2.set(qn('w:ascii'), 'Arial')
+    fld_font2.set(qn('w:hAnsi'), 'Arial')
+    fld_rpr2.append(fld_font2)
+    fld_color2 = OxmlElement('w:color')
+    fld_color2.set(qn('w:val'), '5B707F')
+    fld_rpr2.append(fld_color2)
+    fld_run2.append(fld_rpr2)
+    fld_text2 = OxmlElement('w:t')
+    fld_text2.text = '4'  # placeholder text, Word replaces with actual count
+    fld_run2.append(fld_text2)
+    fld_total.append(fld_run2)
+    dfp._p.append(fld_total)
+
+    # Right-align tab stop so "Page X of Y" floats to the right edge
+    # Content width in landscape with 0.5" margins: 11" - 1" = 10" = 14400 twips
+    from docx.oxml.ns import nsmap
+    pPr = dfp._p.get_or_add_pPr()
+    tabs = OxmlElement('w:tabs')
+    tab = OxmlElement('w:tab')
+    tab.set(qn('w:val'), 'right')
+    tab.set(qn('w:pos'), '14400')
+    tab.set(qn('w:leader'), 'none')
+    tabs.append(tab)
+    pPr.append(tabs)
 
     # ═══════════════════════════════════════
     # PAGE 2: EXECUTIVE SUMMARY
@@ -831,8 +935,8 @@ def build_word_report(client_name, crop_year, interval_results,
 
     # Allocation Table
     if all_positions_df is not None and not all_positions_df.empty:
-        doc.add_paragraph()
         p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(16)
         run = p.add_run("Current Setup \u2014 Grid Allocation by Interval")
         run.font.size = Pt(13)
         run.font.bold = True
@@ -859,6 +963,7 @@ def build_word_report(client_name, crop_year, interval_results,
             run.font.color.rgb = _WHITE
             run.font.name = 'Arial'
             set_cell_shading(cell, "2D3A2E")
+            set_cell_borders(cell, "2D3A2E")
 
         for _, pos in all_positions_df.iterrows():
             alloc = pos.get('ALLOCATION', {})
@@ -887,14 +992,18 @@ def build_word_report(client_name, crop_year, interval_results,
             run.font.size = Pt(7)
             run.font.name = 'Arial'
 
+            # Apply borders to all cells in this row
+            for cell in row_cells:
+                set_cell_borders(cell)
+
     # Beta disclaimer
-    doc.add_paragraph()
     p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(12)
     run = p.add_run(
-        "\u26a0  IMPORTANT: All indemnity figures in this report are estimates based on "
-        "current data and projections. Final values are determined by RMA/USDA after "
-        "interval close. This report is in BETA and should not be used as the sole "
-        "basis for financial decisions."
+        "\u26a0  IMPORTANT: All indemnity figures in this report are estimated gross "
+        "indemnity payouts only \u2014 they do not reflect your premium cost or net profit/loss. "
+        "Final values are determined by RMA/USDA after interval close. "
+        "This report is in BETA and should not be used as the sole basis for financial decisions."
     )
     run.font.size = Pt(8)
     run.font.italic = True
@@ -967,8 +1076,8 @@ def build_word_report(client_name, crop_year, interval_results,
             p = doc.add_paragraph()
             p.paragraph_format.space_before = Pt(6)
             run = p.add_run(
-                f"* Estimates based on rainfall data through day {days_in} of {iv_total}. "
-                "See Glossary for scenario methodology."
+                f"* Estimated gross payouts based on rainfall data through day {days_in} of {iv_total}. "
+                "Does not include premium costs. See Glossary for scenario methodology."
             )
             run.font.size = Pt(8)
             run.font.italic = True
@@ -1001,6 +1110,7 @@ def build_word_report(client_name, crop_year, interval_results,
                 run.font.color.rgb = _WHITE
                 run.font.name = 'Arial'
                 set_cell_shading(cell, "2D3A2E")
+                set_cell_borders(cell, "2D3A2E")
 
             for _, r in indem_df.iterrows():
                 vals = [
@@ -1024,6 +1134,9 @@ def build_word_report(client_name, crop_year, interval_results,
                     run.font.size = Pt(7)
                     run.font.name = 'Arial'
 
+                for cell in row_cells:
+                    set_cell_borders(cell)
+
             # Totals row
             total_acres = int(indem_df['ACRES'].sum())
             total_prot  = int(indem_df['PROTECTION'].sum())
@@ -1043,33 +1156,37 @@ def build_word_report(client_name, crop_year, interval_results,
                 run.font.name = 'Arial'
                 set_cell_shading(cell, "F5F1E8")
 
-        # ── GAUGE PAGES — exactly 3 per page ──
+            for cell in row_cells:
+                set_cell_borders(cell)
+
+        # ── GAUGE PAGES — 2 per page, vertical, centered ──
         display_sorted = display_df.sort_values("PROJECTED_INDEX", ascending=True)
         gauge_list = [row for _, row in display_sorted.iterrows()]
 
-        COLS = 3
-        for chunk_start in range(0, len(gauge_list), COLS):
+        GAUGES_PER_PAGE = 2
+        for chunk_start in range(0, len(gauge_list), GAUGES_PER_PAGE):
             doc.add_page_break()
 
             # Mini header on each gauge page
             p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(f"{iv_name} — Projected Final Index")
-            run.font.size = Pt(16)
+            run.font.size = Pt(14)
             run.font.bold = True
             run.font.color.rgb = _DARK
+            p.paragraph_format.space_after = Pt(4)
 
             # Legend only on first gauge page per interval
             if chunk_start == 0:
                 legend_buf = generate_legend_png(coverage_level)
                 p = doc.add_paragraph()
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.add_run().add_picture(legend_buf, width=Inches(7.5))
+                p.paragraph_format.space_after = Pt(4)
+                p.add_run().add_picture(legend_buf, width=Inches(7.0))
 
-            chunk = gauge_list[chunk_start:chunk_start + COLS]
-            gauge_tbl = doc.add_table(rows=1, cols=COLS)
-            gauge_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+            chunk = gauge_list[chunk_start:chunk_start + GAUGES_PER_PAGE]
 
-            for i, row in enumerate(chunk):
+            for row in chunk:
                 buf = generate_gauge_png(
                     grid_id=row["GRID_ID"],
                     projected_index=row["PROJECTED_INDEX"],
@@ -1082,14 +1199,11 @@ def build_word_report(client_name, crop_year, interval_results,
                     coverage_level=coverage_level,
                     county_name=row.get("COUNTY_NAME", ""),
                 )
-                cell = gauge_tbl.rows[0].cells[i]
-                cell.text = ""
-                p = cell.paragraphs[0]
+                p = doc.add_paragraph()
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.add_run().add_picture(buf, width=Inches(3.0))
-
-            for i in range(len(chunk), COLS):
-                gauge_tbl.rows[0].cells[i].text = ""
+                p.paragraph_format.space_before = Pt(2)
+                p.paragraph_format.space_after = Pt(2)
+                p.add_run().add_picture(buf, width=Inches(4.5))
 
     # ═══════════════════════════════════════
     # GLOSSARY
@@ -1132,6 +1246,11 @@ def build_word_report(client_name, crop_year, interval_results,
          "Payment when final index < coverage level: (Coverage - Index) / Coverage x "
          "Protection. Calculated with Decimal arithmetic and Round Half Up to match "
          "official RMA methods."),
+        ("Estimated Payout (Gross Indemnity)",
+         "The projected insurance payment based on current rainfall data. This is "
+         "the gross indemnity amount before any consideration of premium costs. "
+         "To determine net profit or loss on the insurance position, subtract "
+         "your producer premium from the indemnity payout."),
     ]
 
     for term, definition in glossary:
@@ -1151,15 +1270,16 @@ def build_word_report(client_name, crop_year, interval_results,
         run.font.color.rgb = _SLATE
 
     # Final beta notice
-    doc.add_paragraph()
     p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(12)
     run = p.add_run(
         "\u26a0  BETA NOTICE: This report and all calculations are in beta testing. "
-        "Indemnity estimates are projections based on partial-interval rainfall data "
-        "and should not be used as the sole basis for financial planning. Final index "
-        "values and indemnity amounts are determined exclusively by the USDA Risk "
-        "Management Agency (RMA) after each interval closes. Texas Farm Credit makes "
-        "no guarantee of accuracy."
+        "All indemnity figures shown are estimated gross payouts and do not include "
+        "premium costs or represent net profit/loss. Estimates are projections based "
+        "on partial-interval rainfall data and should not be used as the sole basis "
+        "for financial planning. Final index values and indemnity amounts are determined "
+        "exclusively by the USDA Risk Management Agency (RMA) after each interval "
+        "closes. Texas Farm Credit makes no guarantee of accuracy."
     )
     run.font.size = Pt(8)
     run.font.italic = True
